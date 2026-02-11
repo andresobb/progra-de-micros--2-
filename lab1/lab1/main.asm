@@ -30,8 +30,13 @@ OUT		PORTD, R16
 
 LDI		R16, 0x00
 OUT		DDRB, R16
-LDI		R16, 0x0F
+LDI		R16, 0x1F
 OUT		PORTB, R16			//habilitamos los primeros cuatro bits del B para los botones, añadimos pull ups
+
+LDI		R16, 0xFF
+OUT		DDRC, R16
+LDI		R16, 0x00
+OUT		PORTC, R16
 
 
 // detalles nt
@@ -53,7 +58,6 @@ MAIN_LOOP:
 	CP		R17, R16
 	BREQ	MAIN_LOOP
 
-	//MOV		R17, R16
 
 	CALL	LOGICA
 	MOV		R17, R16
@@ -63,6 +67,17 @@ MAIN_LOOP:
 	SWAP	R22
 	OUT		PORTD, R19
 
+	SBRC	R16, 4
+	RJMP	CLEAR_R
+
+SHOW_SUM:
+	CALL	SUMADOR
+	RJMP	AFTER_SUM
+
+CLEAR_R:
+	OUT		PORTC, R25
+
+AFTER_SUM:
 	RJMP	MAIN_LOOP
     
 
@@ -101,9 +116,18 @@ INC2:
 	RET
 
 DEC2:
-	SBRS	R16, 4
+	SBRS	R16, 3
 	DEC		R22
 	ANDI	R22, 0x0F
+	RET
+
+SUMADOR:
+	MOV		R25, R22
+	ADD		R25, R18
+	ANDI	R25, 0x1F
+
+	OUT		PORTC, R25
+
 	RET
 
 DELAY:
@@ -112,8 +136,7 @@ DELAY_1:
 	DEC		R20
 	BRNE	DELAY_1
 	RET
-
-
+	
 
 /****************************************/
 // Interrupt routines
