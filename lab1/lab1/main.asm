@@ -23,6 +23,11 @@ OUT     SPH, R16
 /****************************************/
 // Configuracion MCU
 
+LDI		R16, (1 << CLKPCE)
+STS		CLKPR, R16		
+LDI		R16, 0x04
+STS		CLKPR, R16
+
 LDI		R16, 0xFF			//seteamos todo el puerto D para contador, ya que agregaremos uno más
 OUT		DDRD, R16
 LDI		R16, 0x00
@@ -75,8 +80,8 @@ SHOW_SUM:
 	RJMP	AFTER_SUM
 
 CLEAR_R:
-	LDI		R25, 0x00
-	OUT		PORTC, R25
+	//LDI		R25, 0x00
+	//OUT		PORTC, R25
 
 AFTER_SUM:
 	RJMP	MAIN_LOOP
