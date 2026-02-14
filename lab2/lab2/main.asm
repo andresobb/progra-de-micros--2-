@@ -40,7 +40,7 @@ OUT		DDRD, R16
 LDI		R16, 0x00
 OUT		PORTD, R16
 
-LDI		R16, 0x00
+LDI		R16, 0x04		//ponemos aca el LED de alarma. 4 - 0100 (bit 3 como salida)
 OUT		DDRB, R16
 LDI		R16, 0x03
 OUT		PORTB, R16
@@ -49,11 +49,13 @@ OUT		PORTB, R16
 .def OVERFLOW = R24
 .def CONTADOR7SEG = R25
 .def BOTONES = R26
+.def LED = R27
 
 CLR	CONTADOR
 CLR	OVERFLOW
 CLR CONTADOR7SEG
 CLR	R0
+CLR	LED
 
 IN	BOTONES, PINB
 
@@ -80,9 +82,25 @@ MAIN_LOOP:
 
 		INC		CONTADOR
 		ANDI	CONTADOR, 0x0F
+
+		CP		CONTADOR, CONTADOR7SEG
+		BRNE	NO_MATCH
+
 		OUT		PORTC, CONTADOR
+		CLR		CONTADOR
+
+		LDI		R16, 0x04		//cargamos 0100 para solo tocar el bit 3
+		EOR		LED, R16
+
+		; re construimos el puerto B con los pullups en los botones
+		LDI		R16, 0x03
+		OR		R16, LED
+		OUT		PORTB, R16
 		
 		RJMP    FINMAIN
+
+NO_MATCH:
+		OUT		PORTC, CONTADOR
 
 FINMAIN:
 	CALL	BOTONES_fnc
