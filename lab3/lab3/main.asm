@@ -18,6 +18,7 @@
 	RJMP PCINT0_ISR
 
  /****************************************/
+SETUP:
 // Configuración de la pila
 LDI     R16, LOW(RAMEND)
 OUT     SPL, R16
@@ -31,7 +32,7 @@ STS		CLKPR, R16
 LDI		R16, 0x04		
 STS		CLKPR, R16
 
-LDI		R16, 0x0F
+LDI		R16, 0x1F
 OUT		DDRC, R16
 LDI		R16, 0x00
 OUT		PORTC, R16			;seteamos el puerto C para el contador
@@ -49,9 +50,12 @@ STS		PCICR, R16
 LDI		R16, (1 << PCINT1) | (1 << PCINT0)
 STS		PCMSK0, R16
 
+SEI
+
 
 /******************* VARIABLES *********************/
-TEMP = R17		; para la  isr
+.def BOTONES = R18		
+.def CONTADOR4BITS = R19
 
 
    
@@ -66,12 +70,24 @@ PCINT0_ISR:
 	PUSH	R16
 	IN		R16, SREG
 	PUSH	R16
-	PUSH	TEMP
+	PUSH	BOTONES
 
+	LDI		BOTONES, PINB
 
-	POP		TEMP
+	SBRS	BOTONES, 0
+	INC		CONTADOR4BITS
+
+	SBRS	BOTONES, 1
+	DEC		CONTADOR4BITS
+
+	ANDI	CONTADOR4BITS, 0x0F
+	OUT		PORTC, CONTADOR4BITS
+
+	SBI		PORTC, 4
+
+	POP		BOTONES
 	POP		R16
-	OUT		R16, SREG
+	OUT		SREG, R16
 	POP		R16
 
 	RETI
