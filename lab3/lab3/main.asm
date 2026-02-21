@@ -16,31 +16,41 @@
 		RJMP SETUP
 .org PCI0addr		;0x0006
 	RJMP PCINT0_ISR
+.org OVF0addr		;0x0020 overflow del timer 0
+	RJMP  TIMER0_ISR
 
  /****************************************/
 SETUP:
+
+segdig: .dB 0x40, 0x79, 0x24, 0x30, 0x19, 0x12, 0x02, 0x78, 0x00, 0x18
+
 // Configuración de la pila
 LDI     R16, LOW(RAMEND)
 OUT     SPL, R16
 LDI     R16, HIGH(RAMEND)
 OUT     SPH, R16
 /****************************************/
-// Configuracion MCU
+// Configuracion MCU 
 
 LDI		R16, (1 << CLKPCE)
 STS		CLKPR, R16
 LDI		R16, 0x04		
 STS		CLKPR, R16
 
-LDI		R16, 0x1F
+LDI		R16, 0x0F
 OUT		DDRC, R16
 LDI		R16, 0x00
 OUT		PORTC, R16			;seteamos el puerto C para el contador
 
-LDI		R16, 0x00
+LDI		R16, 0x2C			;puerto B en 1100
 OUT		DDRB, R16
 LDI		R16, 0x03			;activamos pullups en los primeros dos bits de portB (botones)
 OUT		PORTB, R16
+
+LDI		R16, 0xFF
+OUT		DDRD, R16
+LDI		R16, 0x00
+OUT		PORTD, R16			;puerto D para el display
 
 //primero ponemos que usaremos el puerto B
 LDI		R16, (1 << PCIE0)
@@ -50,14 +60,29 @@ STS		PCICR, R16
 LDI		R16, (1 << PCINT1) | (1 << PCINT0)
 STS		PCMSK0, R16
 
+
+
 SEI
 
-
+CALL	INIT_TMR0
+//ints por overflow
+LDI		R16, (1 << TOIE0)	
+STS		TIMSK0, R16
 /******************* VARIABLES *********************/
 .def BOTONES = R18		
 .def CONTADOR4BITS = R19
+.def OVERFLOW = R20
+.def SEG_U = R22
+.def DIGITO = R23
+.def SALIDA7 = R24
 
-
+CLR	BOTONES
+CLR	CONTADOR4BITS
+CLR	OVERFLOW
+CLR	R0
+CLR SEG_U
+CLR	DIGITO
+CLR SALIDA7
    
 /****************************************/
 // Loop Infinito
@@ -66,6 +91,19 @@ MAIN:
 
 /****************************************/
 // NON-Interrupt subroutines
+
+INIT_TMR0:	
+	LDI		R16, (1 << CS01) | (1 << CS00)	;reciclamos del lab anterior
+	OUT		TCCR0B, R16
+
+	LDI		R16, 100
+	OUT		TCNT0, R16
+
+	RET
+
+/****************************************/
+// Interrupt routines
+
 PCINT0_ISR:
 	PUSH	R16
 	IN		R16, SREG
@@ -81,7 +119,6 @@ PCINT0_ISR:
 	DEC		CONTADOR4BITS
 
 	ANDI	CONTADOR4BITS, 0x0F
-	SBI		PORTC, 4
 	OUT		PORTC, CONTADOR4BITS
 
 	POP		BOTONES
@@ -90,10 +127,49 @@ PCINT0_ISR:
 	POP		R16
 
 	RETI
-	
 
-/****************************************/
-// Interrupt routines
+TIMER0_ISR:
+	PUSH	R16
+	IN		R16, SREG
+	PUSH	R16
+	PUSH	R19
+
+	LDI		R16, 100
+	OUT		TCNT0, R16
+
+	INC		OVERFLOW
+	CPI		OVERFLOW, 100
+	BRNE	NO_CONTAR
+	CLR		OVERFLOW
+	
+	SBI		PINB, 5
+
+	INC		SEG_U
+	CPI		SEG_U, 10
+	BRNE	NO_CARRY
+	CLR		SEG_U
+
+
+
+
+	NO_CONTAR:
+	NO_CARRY:
+
+	MOSTRAR:
+	LDI		ZH, HIGH(segdig << 1)
+	LDI		ZL, LOW(segdig << 1)
+
+	ADD		ZL, SEG_U
+	ADC		ZH, R0
+	LPM		R19, Z
+	OUT		PORTD, R19
+
+	POP		R19
+	POP		R16
+	OUT		SREG, R16
+	POP		R16
+
+	RETI
 
 /****************************************/
 
