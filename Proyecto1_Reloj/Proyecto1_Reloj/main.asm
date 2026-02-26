@@ -24,6 +24,11 @@ OUT     SPH, R16
 /****************************************/
 // Configuracion MCU
 
+LDI		R16, (1 << CLKPCE)
+STS		CLKPR, R16
+LDI		R16, 0x04		
+STS		CLKPR, R16
+
 LDI		R16, 0xFF
 OUT		DDRD, R16		;DISPLAYS de 7 segmentos
 LDI		R16, 0x00
@@ -40,14 +45,42 @@ LDI		R16, 0x07			// pullups
 OUT		PORTC, R16			
 
 
+.equ T1VALUE = 0xFC30		//49,911 PARA 1s
+
+CALL INIT_TMR0
+CALL INIT_TMR1
+
     
 /****************************************/
 // Loop Infinito
 MAIN_LOOP:
-    RJMP    MAIN_LOOP
+	RJMP    MAIN_LOOP
 
 /****************************************/
 // NON-Interrupt subroutines
+
+INIT_TMR0:		;usamos prescaler de 64, esto sera para el multiplexado
+	LDI		R16, (1 << CS01) | (1 << CS00)
+	OUT		TCCR0B, R16
+
+	LDI		R16, 177		//aprox 5ms
+	OUT		TCNT0, R16
+
+	RET
+
+INIT_TMR1:
+	LDI		R16, 0x00
+	STS		TCCR1A, R16		//modo normal
+			
+	LDI		R16, (1 << CS11) | (1 << CS10)		//prescaler de 64
+	STS		TCCR1B, R16
+
+	LDI		R16, HIGH(T1VALUE)
+	STS		TCNT1H, R16
+	LDI		R16, LOW(T1VALUE)
+	STS		TCNT1L, R16	
+	
+	RET
 
 /****************************************/
 // Interrupt routines
