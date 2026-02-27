@@ -28,6 +28,11 @@
 .def DIGITO	= R26
 .def SALIDA7 = R27
 .def FLAGS = R28		//bit 0 (1 - alarma activa, 0 - inactiva), bit1 si esta seteada o no
+.def DIA_U = R17
+.def DIA_D = R19
+.def MES_U = R29
+.def MES_D = R30
+.def MODE = R31
 
 .cseg
 .org 0x0000
@@ -82,10 +87,15 @@ CLR		TICKS
 CLR		MIN_U
 CLR		MIN_D
 CLR		HOR_U
-CLR		HOR_D		
+CLR		HOR_D	
+CLR		DIA_U
+CLR		DIA_D
+CLR		MES_U
+CLR		MES_D
 CLR		DIGIDX
 CLR		DIGITO
 CLR		SALIDA7
+CLR		MODE
 CLR		R0
 
 CALL INIT_TMR0
@@ -118,6 +128,8 @@ INIT_TMR0:		;usamos prescaler de 64, esto sera para el multiplexado
 
 TIMER0_OVF:
 	PUSH	R16
+	PUSH	R15
+	PUSH	R17
 	PUSH	R30
 	PUSH	R31
 	IN		R16, SREG
@@ -163,6 +175,8 @@ TIMER0_OVF:
 	CLR		HOR_D
 	CLR		HOR_U
 
+	//hacer aca lo de que llegue a 24h y cambiar dia
+
 MUX_START:
 
 	CBI		PORTB, PORTB0
@@ -170,6 +184,11 @@ MUX_START:
 	CBI		PORTB, PORTB2
 	CBI		PORTB, PORTB3
 
+	CPI		MODE, M_HORA
+	BREQ	SHOW_HORA
+	RJMP	SHOW_FECHA
+
+SHOW_HORA:
 	CPI		DIGIDX, 0
 	BREQ	D0
 	CPI		DIGIDX, 1
@@ -198,6 +217,36 @@ D3:									//unidad minuto
 	SBI		PORTB, PORTB3
 	RJMP	SHOW
 
+SHOW_FECHA:
+	CPI		DIGIDX, 0
+	BREQ	F0
+	CPI		DIGIDX, 1
+	BREQ	F1
+	CPI		DIGIDX, 2
+	BREQ	F2
+	RJMP	F3		//tipo else
+
+F0:									//decimal hora
+	MOV		DIGITO, DIA_D
+	SBI		PORTB, PORTB0
+	RJMP	SHOW
+
+F1:									//unidad hora
+	MOV		DIGITO, DIA_U
+	SBI		PORTB, PORTB1
+	RJMP	SHOW
+
+F2:									//decimal minuto
+	MOV		DIGITO, MES_D
+	SBI		PORTB, PORTB2
+	RJMP	SHOW
+
+F3:									//unidad minuto
+	MOV		DIGITO, MES_U
+	SBI		PORTB, PORTB3
+	RJMP	SHOW
+
+
 SHOW:
 	LDI		ZH, HIGH(segdig << 1)
     LDI		ZL, LOW(segdig << 1)
@@ -216,6 +265,8 @@ SALIDA_ISR:
 	OUT		SREG, R16
 	POP		R31
 	POP		R30
+	POP		R17
+	POP		R15
 	POP		R16
 
 	RETI
@@ -225,8 +276,19 @@ PORTC_ISR:
 	IN		R16, SREG
 	PUSH	R16
 	
-	CBI		PORTB, PORTB4
+	CBI		PORTB, PORTB4		//boton apaga al buzzer
 
+	IN		R16, PINC
+
+	SBRS	R16, 0
+	RJMP	BTN0
+	RJMP	END_ISR
+
+BTN0:
+	LDI		R16, 1
+	EOR		MODE, R16
+
+END_ISR:
 	POP		R16
 	OUT		SREG, R16
 	POP		R16
