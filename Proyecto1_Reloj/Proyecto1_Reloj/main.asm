@@ -58,6 +58,7 @@ MES_D: .byte 1
 .def SALIDA7 = R27
 .def FLAGS = R28		//bit 0 (1 - alarma activa, 0 - inactiva), bit1 si esta seteada o no
 .def MODE = R19
+.def MAXD = R12
 
 .org 0x0000
 	RJMP	SETUP
@@ -72,6 +73,7 @@ MES_D: .byte 1
 SETUP:
 
 segdig: .dB 0x40, 0x79, 0x24, 0x30, 0x19, 0x12, 0x02, 0x78, 0x00, 0x18
+MAX_DIAS: .dB 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31
 
 LDI     R16, LOW(RAMEND)
 OUT     SPL, R16
@@ -118,6 +120,7 @@ CLR		SALIDA7
 CLR		MODE
 CLR		R0
 CLR		FLAGS
+CLR		MAXD
 
 LDI R16, 0
 STS DIA_U, R16
@@ -195,6 +198,9 @@ MAIN_LOOP:
 	CPI		MODE, M_CONF_HORA
 	BRNE	CHECK_1S
 	CALL	INC_CH_HOR
+	CPI		MODE, M_CONF_FECHA
+	BRNE	CHECK_1S
+	CALL	INC_CF_MES
 	RJMP	CHECK_1S
 
 	CHECK_1S:
@@ -322,6 +328,65 @@ INC_CH_HOR:
 	
 	RET
 
+	ENTER_CONF_FECHA:
+	LDS		R16, DIA_U
+	STS		CF_DIA_U, R16
+	LDS		R16, DIA_D
+	STS		CF_DIA_D, R16
+	LDS		R16, MES_U
+	STS		CF_MES_U, R16
+	LDS		R16, MES_D
+	STS		CF_MES_D, R16
+
+	RET
+
+	GUARDAR_FECHA:
+	LDS		R16, CF_DIA_U
+	STS		DIA_U, R16
+	LDS		R16, CF_DIA_D
+	STS		DIA_D, R16
+	LDS		R16, CF_MES_U
+	STS		MES_U, R16
+	LDS		R16, CF_MES_D
+	STS		MES_D, R16
+
+	RET
+
+	GET_MAX_DIA_CF:
+	LDS		R16, CF_MES_D
+	LDS		R17, CF_MES_U
+
+	CPI		R16, 0
+	BREQ	DECENAS0
+
+	CPI		R16, 1
+	BREQ	DECENAS1
+
+	LDI		MAXD, 31
+	RET
+
+	DECENAS0:
+	DEC		R17
+	RJMP	M_READ
+
+	DECENAS1:
+	LDI		R16, 9
+	ADD		R17, R16
+
+	M_READ:
+	LDI		ZH, HIGH(MAX_DIAS << 1)
+    LDI		ZL, LOW(MAX_DIAS << 1)
+    ADD		ZL, R17
+    ADC		ZH, R0
+    LPM		MAXD, Z
+
+	RET
+
+	INC_CF_DIA:
+	LDS		R16, CF_DIA_U
+	INC		CF_DIA_U
+	CPI		
+
 /****************************************/
 // Interrupt routines
 
@@ -364,7 +429,7 @@ TIMER0_OVF:
 	CPI		MODE, M_CONF_HORA
 	BREQ	SHOW_CONF_HORA
 	CPI		MODE, M_CONF_FECHA
-	BREQ	SHOW_FECHA
+	BREQ	SHOW_CONF_FECHA
 
 	SHOW_HORA:
 	CPI		DIGIDX, 0
@@ -450,6 +515,35 @@ TIMER0_OVF:
 
 	CH3:									//unidad minuto
 	LDS		DIGITO, CH_MIN_U
+	SBI		PORTB, PORTB3
+	RJMP	SHOW
+
+	SHOW_CONF_FECHA:
+	CPI		DIGIDX, 0
+	BREQ	CF0
+	CPI		DIGIDX, 1
+	BREQ	CF1
+	CPI		DIGIDX, 2
+	BREQ	CF2
+	RJMP	CF3		//tipo else
+
+	CF0:									//decimal hora
+	LDS		DIGITO, CF_DIA_D
+	SBI		PORTB, PORTB0
+	RJMP	SHOW
+
+	CF1:									//unidad hora
+	LDS		DIGITO, CF_DIA_U
+	SBI		PORTB, PORTB1
+	RJMP	SHOW
+
+	CF2:									//decimal minuto
+	LDS		DIGITO, CF_MES_D
+	SBI		PORTB, PORTB2
+	RJMP	SHOW
+
+	CF3:									//unidad minuto
+	LDS		DIGITO, CF_MES_U
 	SBI		PORTB, PORTB3
 	RJMP	SHOW
 
