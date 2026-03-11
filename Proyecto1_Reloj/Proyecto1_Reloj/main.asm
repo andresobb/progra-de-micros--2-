@@ -28,6 +28,13 @@ DIA_D: .byte 1
 MES_U: .byte 1
 MES_D: .byte 1
 
+A_MIN_U: .byte 1
+A_MIN_D: .byte 1
+A_HOR_U: .byte 1
+A_HOR_D: .byte 1
+
+PREV_MODE: .byte 1
+
 .cseg
 
 .equ T1VALUE = 0xC2F7		//49,911 PARA 1s
@@ -42,10 +49,13 @@ MES_D: .byte 1
 
 .equ BTN_MASK     = (1<<PC3)|(1<<PC4)|(1<<PC5)
 
-.equ EV_1S       = 0   ; tick de 1 segundo (solo si NO estás en config)
-.equ EV_SAVE     = 1   ; botón PC3
-.equ EV_INC_A    = 2   ; botón PC4
-.equ EV_INC_B    = 3   ; botón PC5
+.equ EV_1S       = 0    ; tick de 1 segundo (solo si NO estás en config)
+.equ EV_SAVE     = 1    ; botón PC3
+.equ EV_INC_A    = 2    ; botón PC4
+.equ EV_INC_B    = 3    ; botón PC5
+					    
+.equ ALARM_EN	 = 5    ; alarma habilitada
+.equ ALARM_RING  = 6	; alarma sonando
 
 .def TICKS = R18
 .def SEG = R20
@@ -122,6 +132,18 @@ CLR		R0
 CLR		FLAGS
 CLR		MAXD
 
+LDI		R16, 0x00
+STS		A_MIN_U, R16
+STS		A_MIN_D, R16
+STS		A_HOR_U, R16
+STS		A_HOR_D, R16
+
+// PREV_MODE = M_HORA para empezar
+LDI		R16, M_HORA
+STS		PREV_MODE, R16
+
+CBI		PORTB, PORTB4			;apagamos el buzzer inicialmente
+
 LDI R16, 0
 STS DIA_U, R16
 STS DIA_D, R16
@@ -159,6 +181,17 @@ MAIN_LOOP:
     LDI     MODE, M_FECHA
     RJMP    CHECK_1S
 
+	CPI		MODE, M_CONF_ALARMA
+	BRNE	SAVE_NORMAL
+
+	SBR		FLAGS, (1 << ALARM_EN)
+	CBR		FLAGS, (1 << ALARM_RING)
+	CBI		PORT, PORTB4
+
+	LDS		R16, PREV_MODE
+	MOV		MODE, R16
+	RJMP	CHECK_1S
+
 	SAVE_NORMAL:
 
 	CPI		MODE, M_HORA
@@ -190,6 +223,9 @@ MAIN_LOOP:
 	CPI		MODE, M_CONF_FECHA
 	BREQ	INC_MES
 
+	CPI		MODE, M_CONF_ALARMA
+	BREQ	INC_A_MIN_LBL
+
 	RJMP	CHECK_PC5
 
 	ENTER_CONF:
@@ -212,10 +248,19 @@ MAIN_LOOP:
 	CALL	INC_CF_MES
 	RJMP	CHECK_1S
 
+	INC_A_MIN_LBL:
+	CALL	INC_ALARM_MIN
+	RJMP	CHECK_1S
+
 	CHECK_PC5:
 	SBRS	FLAGS, EV_INC_B
 	RJMP	CHECK_1S
 	CBR		FLAGS, (1 << EV_INC_B)
+
+	CPI		MODE, M_HORA
+	BREQ	ENTER_ALARMA
+	CPI		MODE, M_FECHA
+	BREQ	ENTER_ALARMA
 
 	CPI		MODE, M_CONF_HORA
 	BREQ	INC_HORA
@@ -223,6 +268,17 @@ MAIN_LOOP:
 	CPI		MODE, M_CONF_FECHA
 	BREQ	INC_DIA
 
+	CPI		MODE, M_CONF_ALARMA
+	BREQ	INC_A_HOR_LBL
+
+	RJMP	CHECK_1S
+
+	ENTER_ALARMA:
+	CALL	ENTER_CONF_ALARMA
+	RJMP	CHECK_1S
+
+	INC_A_HOR_LBL:
+	CALL	INC_ALARM_HOR
 	RJMP	CHECK_1S
 
 	INC_HORA:
@@ -239,6 +295,7 @@ MAIN_LOOP:
 
 	CBR		FLAGS, (1 << EV_1S)
 	CALL	TICK_1S
+	CALL	CHECK_ALARMA
 	RJMP	MAIN_LOOP
 
 /****************************************/
@@ -254,7 +311,6 @@ INIT_TMR0:		;usamos prescaler de 64, esto sera para el multiplexado
 	RET
 
 TICK_1S:
-
 	SBI		PINB, PINB5
 
 	INC		SEG
@@ -547,6 +603,92 @@ INC_FECHA_REAL:
 	
 	RET
 
+ENTER_CONF_ALARMA:
+	STS		PREV_MODE, MODE
+	LDI		MODE, M_CONF_ALARMA
+	CBR		FLAGS, (1 << EV_1S)
+
+	RET
+
+INC_ALARM_MIN:
+	LDS		R16, A_MIN_U
+	INC		R16
+	CPI		R16, 10
+	BRNE	A_SAVE_MIN_U
+	CLR		R16
+	STS		A_MIN_U, R16
+
+	LDS		R16, A_MIN_D
+	INC		R16
+	CPI		R16, 6
+	BRNE	A_SAVE_MIN_D
+	CLR		R16
+
+	A_SAVE_MIN_D:
+	STS		A_MIN_D, R16
+	RET
+
+	A_SAVE_MIN_U:
+	STS		A_MIN_U, R16	
+	RET
+
+INC_ALARM_HOR:
+	LDS		R16, A_HOR_U
+	LDS		R17, A_HOR_D
+	INC		R16
+
+	CPI		R17, 2
+	BRNE	A_CONT_H
+	CPI		R16, 4
+	BRNE	A_CONT_H
+	CLR		R16
+	CLR		R17
+	STS     A_HOR_U, R16
+    STS     A_HOR_D, R17
+    RET		
+
+	A_CONT_H:
+	CPI		R16, 10
+	BRNE	A_SAVE_H
+	CLR		R16
+	INC		R17
+
+	A_SAVE_H:
+	STS		A_HOR_U, R16
+	STS		A_HOR_D, R17
+	
+	RET
+
+CHECK_ALARMA:
+	SBRS	FLAGS, ALARM_EN		;si alarma no enabled, hace ret
+	RET
+
+	SBRC	FLAGS, ALARM_RIN	; si ya esta sonando, hace ret
+	RET
+
+	CPI		SEG, 0				; chequea solo al incio del segundo
+	BRNE	CHECK_END
+
+	LDS		R16, A_MIN_U
+	CP		MIN_U, R16
+	BRNE	CHECK_END
+	LDS		R16, A_MIN_D
+	CP		MIN_D, R16
+	BRNE	CHECK_END
+
+	LDS		R16, A_HOR_U
+	CP		HOR_U, R16
+	BRNE	CHECK_END
+	LDS		R16, A_HOR_D
+	CP		HOR_D, R16
+	BRNE	CHECK_END
+
+	SBR		FLAGS, (1 << ALARM_RING)
+	SBI		PORTB, PORTB4
+
+	CHECK_END:
+	RET
+
 /****************************************/
 // Interrupt routines
 
@@ -592,6 +734,11 @@ TIMER0_OVF:
 	BRNE	SKIP_SHOW_CONF_FECHA
 	JMP		SHOW_CONF_FECHA
 	SKIP_SHOW_CONF_FECHA:
+
+	CPI		MODE, M_CONF_ALARMA
+	BRNE	SKIP_ALARMA_SHOW
+	JMP		SHOW_ALARMA
+	SKIP_ALARMA_SHOW:
 
 	SHOW_HORA:
 	CPI		DIGIDX, 0
@@ -709,6 +856,35 @@ TIMER0_OVF:
 	SBI		PORTB, PORTB3
 	RJMP	SHOW
 
+	SHOW_ALARMA:
+	CPI		DIGIDX, 0
+	BREQ	A0
+	CPI		DIGIDX, 1
+	BREQ	A1
+	CPI		DIGIDX, 2
+	BREQ	A2
+	RJMP	A3		//tipo else
+
+	A0:									//decimal hora
+	LDS		DIGITO, A_HOR_D
+	SBI		PORTB, PORTB0
+	RJMP	SHOW
+
+	A1:									//unidad hora
+	LDS		DIGITO, A_HOR_U
+	SBI		PORTB, PORTB1
+	RJMP	SHOW
+
+	A2:									//decimal minuto
+	LDS		DIGITO, A_MIN_D
+	SBI		PORTB, PORTB2
+	RJMP	SHOW
+
+	A3:									//unidad minuto
+	LDS		DIGITO, A_MIN_U
+	SBI		PORTB, PORTB3
+	RJMP	SHOW
+
 	SHOW:
 	LDI		ZH, HIGH(segdig << 1)
     LDI		ZL, LOW(segdig << 1)
@@ -750,6 +926,20 @@ PORTC_ISR:
 
 	STS		KEY_LAST, R16
 
+	// cualquier boton apaga la alarma y NO acciona el boton
+	SBRS	FLAGS, ALARM_RING
+	RJMP	CONT_EVENTS
+
+	TST		R15							// es como decir AND	Rd, Rd
+	BREQ	CONT_EVENTS
+
+	CBR		FLAGS, (1 << ALARM_RING)
+	CBI		PORTB, PORTB4
+	RJMP	END_ISR
+
+
+	// aqui si cuenta los eventos
+	CONT_EVENTS:
 	SBRS	R15, BTN_SAVE_BIT
 	RJMP	CHECK_A
 	SBR		FLAGS, (1 << EV_SAVE)
