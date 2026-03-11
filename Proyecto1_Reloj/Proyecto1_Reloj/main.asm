@@ -176,21 +176,24 @@ MAIN_LOOP:
 
 	SAVE_FECHA:
 	CPI     MODE, M_CONF_FECHA
-    BRNE    SAVE_NORMAL
+    BRNE    SAVE_ALARMA
     CALL    GUARDAR_FECHA
     LDI     MODE, M_FECHA
     RJMP    CHECK_1S
 
+	SAVE_ALARMA:
 	CPI		MODE, M_CONF_ALARMA
 	BRNE	SAVE_NORMAL
 
 	SBR		FLAGS, (1 << ALARM_EN)
 	CBR		FLAGS, (1 << ALARM_RING)
-	CBI		PORT, PORTB4
-
-	LDS		R16, PREV_MODE
-	MOV		MODE, R16
+	CBI		PORTB, PORTB4
+	LDI		MODE, M_HORA
 	RJMP	CHECK_1S
+
+	/*LDS		R16, PREV_MODE
+	MOV		MODE, R16
+	RJMP	CHECK_1S*/
 
 	SAVE_NORMAL:
 
@@ -663,7 +666,7 @@ CHECK_ALARMA:
 	SBRS	FLAGS, ALARM_EN		;si alarma no enabled, hace ret
 	RET
 
-	SBRC	FLAGS, ALARM_RIN	; si ya esta sonando, hace ret
+	SBRC	FLAGS, ALARM_RING	; si ya esta sonando, hace ret
 	RET
 
 	CPI		SEG, 0				; chequea solo al incio del segundo
