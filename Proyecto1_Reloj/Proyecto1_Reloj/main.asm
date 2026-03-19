@@ -134,8 +134,8 @@ CLR		MAXD
 
 LDI		R16, 0x00
 STS		A_MIN_U, R16
-STS		A_MIN_D, R16
 STS		A_HOR_U, R16
+STS		A_MIN_D, R16
 STS		A_HOR_D, R16
 
 // PREV_MODE = M_HORA para empezar
@@ -145,10 +145,11 @@ STS		PREV_MODE, R16
 CBI		PORTB, PORTB4			;apagamos el buzzer inicialmente
 SBI		PORTC, PORTC0			;el LED de hora empieza encendido
 
-LDI R16, 0
+LDI R16, 1
 STS DIA_U, R16
-STS DIA_D, R16
 STS MES_U, R16
+LDI R16, 0
+STS DIA_D, R16
 STS MES_D, R16
 
 LDI		R16, BTN_MASK
