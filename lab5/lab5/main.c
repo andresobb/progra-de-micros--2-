@@ -34,7 +34,7 @@ int main(void)
 		copia_ADC = valor_ADC;
 		sei();
 		
-		dutyCycle = 1000 + ((uint32_t)copia_ADC * 4000) / 1023;
+		dutyCycle = 1000 + ((uint32_t)copia_ADC * 3500) / 1023;
 		update_DutyCycle1(dutyCycle);		
 	}
 	

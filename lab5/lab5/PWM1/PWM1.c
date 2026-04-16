@@ -18,7 +18,7 @@ void PWM1_init(void)
 	TCCR1B |= (1 << WGM13) | (1 << WGM12) | (1 << CS11);	//completa modo 14 + prescaler de 8
 	
 	ICR1 = 39999;			//periodo de 20ms 
-	OCR1A = 3000;			// pulso inicial 1.5 ms aproximado
+	OCR1A = 2750;			// pulso inicial 1.5 ms aproximado
 }
 
 void update_DutyCycle1(uint16_t dutyCycle)
