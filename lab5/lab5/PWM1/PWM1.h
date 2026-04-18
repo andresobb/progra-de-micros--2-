@@ -12,7 +12,7 @@
 #include <avr/io.h>
 #include <stdint.h>
 
-void PWM1_init();
-void update_DutyCycle1(uint16_t dutyCycle);
+void PWM1_init(void);
+void update_DutyCycle0(uint16_t dutyCycle);
 
 #endif /* PWM1_H_ */
