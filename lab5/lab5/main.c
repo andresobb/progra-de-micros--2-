@@ -13,13 +13,19 @@
 #include <stdint.h>
 #include "PWM1/PWM1.h"
 #include "PWM2/PWM2.h"
+#include "PWM3/PWM3.h"
 
 volatile uint16_t valor_ADC0 = 0;
 volatile uint16_t valor_ADC1 = 0;
+volatile uint16_t valor_ADC2 = 0;
+
 uint16_t copia_ADC0 = 0;
 uint16_t copia_ADC1 = 0;
+uint16_t copia_ADC2 = 0;
+
 uint16_t dutyCycle0 = 0;
 uint16_t dutyCycle1 = 0;
+uint16_t dutyCycle2 = 0;
 
 /****************************************/
 // Function prototypes
@@ -36,11 +42,15 @@ int main(void)
 	{
 		copia_ADC0 = valor_ADC0;
 		copia_ADC1 = valor_ADC1;
+		copia_ADC2 = valor_ADC2;
 				
 		dutyCycle0 = 1000 + ((uint32_t)copia_ADC0 * 3500) / 1023;
 		dutyCycle1 = 8 + ((uint32_t)copia_ADC1 * 27) / 1023;
+		dutyCycle2 = ((uint32_t)copia_ADC2 * 100) / 1023;
+		
 		update_DutyCycle0(dutyCycle0);	
-		update_DutyCycle1(dutyCycle1);	
+		update_DutyCycle1(dutyCycle1);
+		update_DutyCycle2(dutyCycle2);	
 	}
 	
 }
@@ -51,14 +61,14 @@ void setup(void)
 {
 	cli();
 	
-	DDRC &= ~((1 << DDC1) | (1 << DDC0));		//PC0 Y PC1 para ADC
-	PORTC &= ~((1 << PORTC1) | (1 << PORTC0));
-	DIDR0 |= ((1 << ADC1D) | (1 << ADC0D));		//desactiva entrada digital en el ADC
+	DDRC &= ~((1 << DDC2) | (1 << DDC1) | (1 << DDC0));		//PC0 Y PC1 para ADC + PC2 
+	PORTC &= ~((1 << PORTC2) | (1 << PORTC1) | (1 << PORTC0));
+	DIDR0 |= ((1 << ADC2D) | (1 << ADC1D) | (1 << ADC0D));		//desactiva entrada digital en el ADC
 	
 	ADC_init();
 	PWM1_init();
 	PWM2_init();
-	
+	PWM3_init();
 	sei();	
 }
 
@@ -87,7 +97,12 @@ ISR(ADC_vect)						//evitamos polling
 	else if (canal_ADC == 1)
 	{
 		valor_ADC1 = ADC;
-		ADMUX = (ADMUX & 0xF0) | 0;				// 1 -> 0
+		ADMUX = (ADMUX & 0xF0) | 2;				// 1 -> 2
+	}
+	else if (canal_ADC == 2)
+	{
+		valor_ADC2 = ADC;
+		ADMUX = (ADMUX & 0xF0) | 0;				// 2 -> 0
 	}
 	
 	ADCSRA |= (1 << ADSC);

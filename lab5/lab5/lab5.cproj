@@ -135,8 +135,15 @@
     <Compile Include="PWM2\PWM2.h">
       <SubType>compile</SubType>
     </Compile>
+    <Compile Include="PWM3\PWM3.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="PWM3\PWM3.h">
+      <SubType>compile</SubType>
+    </Compile>
   </ItemGroup>
   <ItemGroup>
+    <Folder Include="PWM3" />
     <Folder Include="PWM2" />
     <Folder Include="PWM1" />
   </ItemGroup>
