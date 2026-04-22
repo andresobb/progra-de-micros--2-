@@ -10,6 +10,7 @@
 #define PWM3_H_
 
 #include <avr/io.h>
+#include <avr/interrupt.h>
 
 void PWM3_init(void);
 void update_DutyCycle2(uint8_t dutyCycle);
