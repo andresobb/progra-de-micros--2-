@@ -18,6 +18,7 @@ void UART_init(void);
 void UART_sendChar(char caracter);
 char UART_readChar(void);
 void mostrarASCII(uint8_t dato);
+void cadena(char txt[]);
 
 /****************************************/
 // Main Function
@@ -26,7 +27,8 @@ int main(void)
 	setup();
 	
 	// parte 1: enviar un caracter una vez al encender
-	UART_sendChar('A');
+	//UART_sendChar('A');
+	cadena("Pongan drop dead gracias");
 	
 	while (1)
 	{
@@ -71,6 +73,19 @@ char UART_readChar(void)
 {
 	while (!(UCSR0A & (1 << RXC0)));
 	return UDR0;
+}
+
+void cadena(char txt[])
+{
+	uint8_t i=0;
+	
+	while (txt[i] != '\0')
+	{
+		UART_sendChar(txt[i]);
+		i++;
+	}
+	
+	
 }
 
 void mostrarASCII(uint8_t dato)
