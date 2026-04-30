@@ -10,6 +10,7 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <stdint.h>
+#include "ADC/ADC.h"
 
 /****************************************/
 // Function prototypes
@@ -19,7 +20,8 @@ void setup(void);
 
 int main(void)
 {
-	/* Replace with your application code */
+	setup();
+	
 	while (1)
 	{
 	}
@@ -29,7 +31,11 @@ int main(void)
 // NON-Interrupt subroutines
 void setup(void)
 {
+	cli();
 	
+	ADC_init();
+	
+	sei();
 }
 
 /****************************************/
