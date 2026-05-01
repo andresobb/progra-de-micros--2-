@@ -7,6 +7,7 @@
  */
 /****************************************/
 // Encabezado (Libraries)
+#define F_CPU 16000000UL
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <stdint.h>
@@ -51,8 +52,9 @@ int main(void)
 		copia_ADC3 = ADC_valores[3];
 		copia_ADC4 = ADC_valores[4];
 		copia_ADC5 = ADC_valores[5];
-		sei();
 		
+		sei();
+				
 		dutyCycle0 = 8 + ((uint32_t)copia_ADC0 * 27) / 1023;	//OCR0A
 		dutyCycle1 = 8 + ((uint32_t)copia_ADC1 * 27) / 1023;	//OCR0B
 		
@@ -67,7 +69,7 @@ int main(void)
 		dutyCycle_S2(dutyCycle2);
 		dutyCycle_S3(dutyCycle3);
 		dutyCycle_S4(dutyCycle4);
-		dutyCycle_S5(dutyCycle5);		
+		dutyCycle_S5(dutyCycle5);
 	}
 }
 

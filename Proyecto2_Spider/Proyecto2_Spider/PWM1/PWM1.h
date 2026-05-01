@@ -13,7 +13,7 @@
 #include <stdint.h>
 
 void PWM1_init(void);
-void dutyCycle_S2(uint8_t dutyCycle);
-void dutyCycle_S3(uint8_t dutyCycle);
+void dutyCycle_S2(uint16_t dutyCycle);
+void dutyCycle_S3(uint16_t dutyCycle);
 
 #endif /* PWM1_H_ */

@@ -22,12 +22,12 @@ void PWM1_init()
 	OCR1B = 3000;
 }
 
-void dutyCycle_S2(uint8_t dutyCycle)
+void dutyCycle_S2(uint16_t dutyCycle)
 {
 	OCR1A =  dutyCycle;
 }
 
-void dutyCycle_S3(uint8_t dutyCycle)
+void dutyCycle_S3(uint16_t dutyCycle)
 {
 	OCR1B =  dutyCycle;
 }

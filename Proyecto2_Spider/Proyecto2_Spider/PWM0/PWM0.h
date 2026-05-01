@@ -16,4 +16,4 @@ void PWM0_init(void);
 void dutyCycle_S0(uint8_t dutyCycle);
 void dutyCycle_S1(uint8_t dutyCycle);
 
-#endif /* PWM2_H_ */
+#endif /* PWM0_H_ */
