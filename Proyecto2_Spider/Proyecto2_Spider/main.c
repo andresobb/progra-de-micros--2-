@@ -15,6 +15,7 @@
 #include "PWM0/PWM0.h"
 #include "PWM1/PWM1.h"
 #include "PWM2/PWM2.h"
+#include "UART/UART.h"
 
 /****************************************/
 // variables
@@ -70,6 +71,7 @@ int main(void)
 		dutyCycle_S3(dutyCycle3);
 		dutyCycle_S4(dutyCycle4);
 		dutyCycle_S5(dutyCycle5);
+		
 	}
 }
 
@@ -83,6 +85,7 @@ void setup(void)
 	PWM0_init();
 	PWM1_init();
 	PWM2_init();
+	UART_init();
 	
 	sei();
 }
