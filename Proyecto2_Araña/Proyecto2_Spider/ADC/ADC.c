@@ -7,7 +7,7 @@
 
 #include "ADC.h"
 
-volatile uint16_t ADC_values[6] = {0, 0, 0, 0, 0, 0};
+volatile uint16_t ADC_valores[6] = {0, 0, 0, 0, 0, 0};
 volatile uint8_t canal_ADC = 0;
 
 void ADC_init(void)
@@ -23,7 +23,7 @@ void ADC_init(void)
 
 ISR(ADC_vect)
 {
-	ADC_values[canal_ADC] =  ADC;		//guarda la lectura del canal actual
+	ADC_valores[canal_ADC] =  ADC;		//guarda la lectura del canal actual
 	canal_ADC++;
 	
 	if (canal_ADC >= 6)
