@@ -16,6 +16,7 @@
 #include "PWM1/PWM1.h"
 #include "PWM2/PWM2.h"
 #include "UART/UART.h"
+#include "EEPROM/EEPROM.h"
 
 /****************************************/
 // variables
@@ -69,6 +70,9 @@ void setServo(uint8_t servo, uint8_t valor);
 void procesar_comando_uart(void);
 void LED_init(void);
 void update_LED(void);
+void guardar_pose(uint8_t pose);
+void leer_pose(uint8_t pose);
+
 
 /****************************************/
 // Main Function
