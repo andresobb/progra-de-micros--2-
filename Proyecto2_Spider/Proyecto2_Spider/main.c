@@ -62,6 +62,9 @@ void modo_manual(void);
 void modo_uart(void);
 void modo_eeprom(void);
 void posicion_neutra(void);
+void saludo_izq(void);
+void saludo_der(void);
+void reverencia(void);
 void setServo(uint8_t servo, uint8_t valor);
 void procesar_comando_uart(void);
 void LED_init(void);
@@ -210,6 +213,28 @@ void procesar_comando_uart()
 		UART_sendString("Servos en posicion neutra.\r\n");
 		return;
 	}
+	
+	if (buffer_UART[0] == 'I')	//saluda con la mano izquierda
+	{
+		saludo_izq();
+		UART_sendString("Saludo con la mano izquierda.\r\n");
+		return;
+	}
+	
+	if (buffer_UART[0] == 'D')	//saludo con la mano derecha
+	{
+		saludo_der();
+		UART_sendString("Saludo con la mano derecha.\r\n");
+		return;
+	}
+	
+	if (buffer_UART[0] == 'R')	//hace reverencia
+	{
+		reverencia();
+		UART_sendString("Your highness.\r\n");
+		return;
+	}
+	
 	if (buffer_UART[0] == 'M')		//por si se quiere modo manual
 	{
 		modo_actual = MODO_MANUAL;
@@ -265,6 +290,36 @@ void posicion_neutra(void)
 	setServo(3, 120);
 	setServo(4, 0);
 	setServo(5, 160);
+}
+
+void saludo_izq()
+{
+	setServo(0, 0);
+	setServo(1, 0);
+	setServo(2, 100);
+	setServo(3, 100);
+	setServo(4, 90);
+	setServo(5, 160);
+}
+
+void saludo_der()
+{
+	setServo(0, 255);
+	setServo(1, 255);
+	setServo(2, 200);
+	setServo(3, 120);
+	setServo(4, 20);
+	setServo(5, 100);
+}
+
+void reverencia()
+{
+	setServo(0, 180);
+	setServo(1, 100);
+	setServo(2, 160);
+	setServo(3, 120);
+	setServo(4, 100);
+	setServo(5, 40);
 }
 
 void setServo(uint8_t servo, uint8_t valor)
