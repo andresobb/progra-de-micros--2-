@@ -33,12 +33,12 @@ uint16_t dutyCycle3;
 uint8_t dutyCycle4;
 uint8_t dutyCycle5;
 
-uint8_t posicion_S0 = 255;
-uint8_t posicion_S1 = 0;
-uint8_t posicion_S2 = 120;
-uint8_t posicion_S3 = 120;
-uint8_t posicion_S4 = 0;
-uint8_t posicion_S5 = 160;
+uint8_t posicion_S0 = 127;
+uint8_t posicion_S1 = 127;
+uint8_t posicion_S2 = 127;
+uint8_t posicion_S3 = 127;
+uint8_t posicion_S4 = 127;
+uint8_t posicion_S5 = 127;
 
 /*
 - codo izq- PD6
@@ -63,7 +63,9 @@ void modo_uart(void);
 void modo_eeprom(void);
 void posicion_neutra(void);
 void setServo(uint8_t servo, uint8_t valor);
-void procesar_comando_uart();
+void procesar_comando_uart(void);
+void LED_init(void);
+void update_LED(void);
 
 /****************************************/
 // Main Function
@@ -81,6 +83,7 @@ int main(void)
 				bandera_UART = 0;
 				index_UART = 0;
 				modo_actual = MODO_UART;
+				update_LED();
 				UART_sendString("\r\nModo UART\r\n");
 			}
 			
@@ -89,6 +92,7 @@ int main(void)
 				bandera_UART = 0;
 				index_UART = 0;
 				modo_actual = MODO_MANUAL;
+				update_LED();
 				UART_sendString("\r\nModo manual\r\n");	
 			}
 			
@@ -126,6 +130,7 @@ void setup(void)
 	PWM1_init();
 	PWM2_init();
 	UART_init();
+	LED_init();
 	
 	sei();
 	
@@ -256,7 +261,7 @@ void posicion_neutra(void)
 {
 	setServo(0, 255);
 	setServo(1, 0);
-	setServo(2, 120);
+	setServo(2, 160);
 	setServo(3, 120);
 	setServo(4, 0);
 	setServo(5, 160);
@@ -303,6 +308,38 @@ void setServo(uint8_t servo, uint8_t valor)
 		duty8 = 8 + ((uint32_t)valor * 27) / 255;
 		dutyCycle_S5(duty8);
 		posicion_S5 = valor;
+		break;
+	}
+}
+
+void LED_init(void)
+{
+	DDRD |= ((1 << DDD7) | (1 << DDD4) | (1 << DDD2));
+	
+	//rgb es anodo comun, por lo que 1 es apagado
+	PORTD |= ((1 << PORTD7) | (1 << PORTD4) | (1 << PORTD2));
+	
+	update_LED();		
+}
+
+void update_LED(void)
+{
+	//PD2 - ROJO, PD4 - VERDE, PD7 - AZUL
+	
+	PORTD |= ((1 << PORTD7) | (1 << PORTD4) | (1 << PORTD2));
+	
+	switch (modo_actual)
+	{
+		case MODO_MANUAL:
+		PORTD &= ~((1 << PORTD7) | (1 << PORTD2));		//morado para manual
+		break;
+		
+		case MODO_UART:
+		PORTD &= ~((1 << PORTD7) | (1 << PORTD4));		//cyan para UART pq es el mas cool
+		break;
+		
+		case MODO_EEPROM:
+		PORTD &= ~((1 << PORTD4) | (1 << PORTD2));		//morado para manual
 		break;
 	}
 }
