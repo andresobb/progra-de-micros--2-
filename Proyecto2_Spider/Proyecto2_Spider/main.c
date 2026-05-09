@@ -33,24 +33,27 @@ uint16_t dutyCycle3;
 uint8_t dutyCycle4;
 uint8_t dutyCycle5;
 
-uint8_t posicion_S0 = 127;
-uint8_t posicion_S1 = 127;
-uint8_t posicion_S2 = 127;
-uint8_t posicion_S3 = 127;
-uint8_t posicion_S4 = 127;
-uint8_t posicion_S5 = 127;
+uint8_t posicion_S0 = 255;
+uint8_t posicion_S1 = 0;
+uint8_t posicion_S2 = 120;
+uint8_t posicion_S3 = 120;
+uint8_t posicion_S4 = 0;
+uint8_t posicion_S5 = 160;
 
 /*
-servo 1 y 2 - patas delanteras		PD
-servo 3 y 4 patas traseras			PT
-servo 5 - brazo derecho adelante	BDA
-servo 6 - brazo derecho atrás		BDR
-servo 7 - brazo izquierdo adelante	BIA
-servo 8 - brazo izquierdo atrás		BIR
-*/  //se debe revisar
+- codo izq- PD6
+- codo der - PD5
+- brazo izq - PB1
+- brazo der - PB2
+- pata izq - PB3
+- pata der - PD3 
+*/
 
 typedef enum {MODO_MANUAL, MODO_UART, MODO_EEPROM} modo_t;
 volatile modo_t modo_actual = MODO_MANUAL;
+
+char buffer_UART[10];
+uint8_t index_UART = 0;
 
 /****************************************/
 // Function prototypes
@@ -60,6 +63,7 @@ void modo_uart(void);
 void modo_eeprom(void);
 void posicion_neutra(void);
 void setServo(uint8_t servo, uint8_t valor);
+void procesar_comando_uart();
 
 /****************************************/
 // Main Function
@@ -70,6 +74,30 @@ int main(void)
 	
 	while (1)
 	{
+		if (bandera_UART)
+		{
+			if (dato_UART == 'U')
+			{
+				bandera_UART = 0;
+				index_UART = 0;
+				modo_actual = MODO_UART;
+				UART_sendString("\r\nModo UART\r\n");
+			}
+			
+			else if (dato_UART == 'M')
+			{
+				bandera_UART = 0;
+				index_UART = 0;
+				modo_actual = MODO_MANUAL;
+				UART_sendString("\r\nModo manual\r\n");	
+			}
+			
+			else if (modo_actual != MODO_UART)
+			{
+				bandera_UART = 0;
+			}
+		}	
+	
 		switch (modo_actual)
 		{
 			case MODO_MANUAL:
@@ -84,7 +112,6 @@ int main(void)
 			modo_eeprom();
 			break;
 		}
-		
 	}
 }
 
@@ -139,23 +166,85 @@ void modo_uart(void)
 	{
 		bandera_UART = 0;
 		
-		switch (dato_UART)
+		if (dato_UART == '\r' || dato_UART == '\n')
 		{
-			case 'N':
-			posicion_neutra();
-			UART_sendString("Neutral\r\n");
-			break;
+			if (index_UART > 0)
+			{
+				buffer_UART[index_UART] = '\0';
+				procesar_comando_uart();
+				index_UART = 0;
+			}
+		}
+		
+		else
+		{
+			if (index_UART < 9)
+			{
+				buffer_UART[index_UART] = dato_UART;
+				index_UART++;
+			}
 			
-			case 'M':
-			modo_actual = MODO_MANUAL;
-			UART_sendString("Modo manual\r\n");
-			break;
-			
-			default:
-			UART_sendString("Comando no válido\r\n");
-			break;
+			else 
+			{
+				index_UART = 0;
+				UART_sendString("Buffer lleno\r\n");
+			}
 		}
 	}
+}
+
+void procesar_comando_uart()
+{
+	uint8_t servo = 0;
+	uint16_t valor = 0;
+	uint8_t i = 0;
+	
+	if (buffer_UART[0] == 'N')	//llamamos posicion neutra	
+	{
+		posicion_neutra();
+		UART_sendString("Servos en posicion neutra.\r\n");
+		return;
+	}
+	if (buffer_UART[0] == 'M')		//por si se quiere modo manual
+	{
+		modo_actual = MODO_MANUAL;
+		UART_sendString("Modo manual activado.\r\n");
+		return;
+	}
+	if (buffer_UART[0] != 'S')		// usaremos un formato S0:255, por ejemplo. aca verificamos que se este ingresando el formato correcto
+	{
+		UART_sendString("Comando invalido.\r\n");
+		return;
+	}
+	if (buffer_UART[1] < '0' || buffer_UART[1] > '5')
+	{
+		UART_sendString("Servo invalido.\r\n");
+		return;
+	}
+	if (buffer_UART[2] != ':')
+	{
+		UART_sendString("Formato invalido.\r\n");
+		return;
+	}
+	
+	servo = buffer_UART[1] - '0';		//asignamos el valor del servo
+	
+	i = 3;			//empezamos en 3 porque son los de la posicion (3, 4 y 5)
+	
+	while (buffer_UART[i] >= '0' && buffer_UART[i] <= '9')
+	{
+		valor = (valor * 10) + (buffer_UART[i] - '0');
+		i++;
+	}
+	
+	if (valor > 255)
+	{
+		valor = 255;
+	}
+	
+	setServo(servo, (uint8_t)valor);
+	UART_sendString("Ejecucion completada\r\n");
+	
 }
 
 void modo_eeprom(void)
@@ -165,12 +254,12 @@ void modo_eeprom(void)
 
 void posicion_neutra(void)
 {
-	setServo(0, 127);
-	setServo(1, 127);
-	setServo(2, 127);
-	setServo(3, 127);
-	setServo(4, 127);
-	setServo(5, 127);
+	setServo(0, 255);
+	setServo(1, 0);
+	setServo(2, 120);
+	setServo(3, 120);
+	setServo(4, 0);
+	setServo(5, 160);
 }
 
 void setServo(uint8_t servo, uint8_t valor)
