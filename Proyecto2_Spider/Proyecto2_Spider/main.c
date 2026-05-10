@@ -72,7 +72,7 @@ void LED_init(void);
 void update_LED(void);
 void guardar_pose(uint8_t pose);
 void leer_pose(uint8_t pose);
-
+void menu_eeprom();
 
 /****************************************/
 // Main Function
@@ -103,7 +103,17 @@ int main(void)
 				UART_sendString("\r\nModo manual\r\n");	
 			}
 			
-			else if (modo_actual != MODO_UART)
+			else if (dato_UART == 'E')
+			{
+				bandera_UART = 0;
+				index_UART = 0;
+				modo_actual = MODO_EEPROM;
+				update_LED();
+				menu_eeprom();
+				
+			}
+			
+			else if (modo_actual != MODO_UART && modo_actual != MODO_EEPROM)
 			{
 				bandera_UART = 0;
 			}
@@ -170,6 +180,13 @@ void modo_manual(void)
 	dutyCycle_S3(dutyCycle3);
 	dutyCycle_S4(dutyCycle4);
 	dutyCycle_S5(dutyCycle5);
+	
+	posicion_S0 = copia_ADC0 / 4;
+	posicion_S1 = copia_ADC1 / 4;
+	posicion_S2 = copia_ADC2 / 4;
+	posicion_S3 = copia_ADC3 / 4;
+	posicion_S4 = copia_ADC4 / 4;
+	posicion_S5 = copia_ADC5 / 4;
 }
 
 void modo_uart(void)
@@ -245,16 +262,20 @@ void procesar_comando_uart()
 		UART_sendString("Modo manual activado.\r\n");
 		return;
 	}
+	
+	
 	if (buffer_UART[0] != 'S')		// usaremos un formato S0:255, por ejemplo. aca verificamos que se este ingresando el formato correcto
 	{
 		UART_sendString("Comando invalido.\r\n");
 		return;
 	}
+	
 	if (buffer_UART[1] < '0' || buffer_UART[1] > '5')
 	{
 		UART_sendString("Servo invalido.\r\n");
 		return;
 	}
+	
 	if (buffer_UART[2] != ':')
 	{
 		UART_sendString("Formato invalido.\r\n");
@@ -283,7 +304,60 @@ void procesar_comando_uart()
 
 void modo_eeprom(void)
 {
-	//lo veremos después
+	if (bandera_UART)
+	{
+		bandera_UART = 0;
+		if (dato_UART == '\r' || dato_UART == '\n')
+		{
+			if (index_UART > 0)
+			{
+				buffer_UART[index_UART] = '\0';
+				
+				if (buffer_UART[0] == 'G')
+				{
+					if (buffer_UART[1] >= '0' && buffer_UART[1] <= '3')
+					{
+						guardar_pose(buffer_UART[1] - '0');
+					}
+					else
+					{
+						UART_sendString("Pose no valida\r\n");
+					}
+				}
+				else if (buffer_UART[0] == 'L')
+				{
+					if (buffer_UART[1] >= '0' && buffer_UART[1] <= '3')
+					{
+						leer_pose(buffer_UART[1] - '0');
+					}
+					else
+					{
+						UART_sendString("Pose no valida\r\n");
+					}
+				}
+				else
+				{
+					UART_sendString("Comando no valido\r\n");
+					menu_eeprom();
+				}
+				index_UART = 0;
+			}
+		}
+		
+		else
+		{
+			if (index_UART < 9)
+			{
+				buffer_UART[index_UART] = dato_UART;
+				index_UART++;
+			}
+			else
+			{
+				index_UART = 0;
+				UART_sendString("Buffer lleno\r\n"); // cuando pasara esto? no entiendo
+			}
+		}
+	}
 }
 
 void posicion_neutra(void)
@@ -398,9 +472,59 @@ void update_LED(void)
 		break;
 		
 		case MODO_EEPROM:
-		PORTD &= ~((1 << PORTD4) | (1 << PORTD2));		//morado para manual
+		PORTD &= ~(1 << PORTD2);		//eeprom en rojo
 		break;
 	}
+}
+
+void guardar_pose(uint8_t pose)
+{
+	uint16_t direccion = pose * 6;  //por que 6?
+	
+	EEPROM_write(direccion + 0, posicion_S0);
+	EEPROM_write(direccion + 1, posicion_S1);
+	EEPROM_write(direccion + 2, posicion_S2);
+	EEPROM_write(direccion + 3, posicion_S3);
+	EEPROM_write(direccion + 4, posicion_S4);
+	EEPROM_write(direccion + 5, posicion_S5);
+	
+	UART_sendString("\r\nPosicion guardada\r\n");
+}
+
+void leer_pose(uint8_t pose)
+{
+	uint16_t direccion = pose * 6;
+	
+	uint8_t s0 = EEPROM_read(direccion + 0);
+	uint8_t s1 = EEPROM_read(direccion + 1);
+	uint8_t s2 = EEPROM_read(direccion + 2);
+	uint8_t s3 = EEPROM_read(direccion + 3);
+	uint8_t s4 = EEPROM_read(direccion + 4);
+	uint8_t s5 = EEPROM_read(direccion + 5);
+	
+	setServo(0, s0);
+	setServo(1, s1);
+	setServo(2, s2);
+	setServo(3, s3);
+	setServo(4, s4);
+	setServo(5, s5);
+	
+	UART_sendString("\r\nPose leida\r\n");	
+}
+
+void menu_eeprom()
+{
+	UART_sendString("\r\nModo EEPROM\r\n");
+	UART_sendString("G0 - Guardar posicion 0\r\n");
+	UART_sendString("G1 - Guardar posicion 1\r\n");
+	UART_sendString("G2 - Guardar posicion 2\r\n");
+	UART_sendString("G3 - Guardar posicion 3\r\n");
+	UART_sendString("L0 - Leer posicion 0\r\n");
+	UART_sendString("L1 - Leer posicion 1\r\n");
+	UART_sendString("L2 - Leer posicion 2\r\n");
+	UART_sendString("L3 - Leer posicion 3\r\n");
+	UART_sendString("M  - Volver a modo manual\r\n");
+	UART_sendString("U  - Volver a modo UART\r\n");
 }
 
 /****************************************/
