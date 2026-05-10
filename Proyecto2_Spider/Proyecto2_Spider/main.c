@@ -259,10 +259,18 @@ void procesar_comando_uart()
 	if (buffer_UART[0] == 'M')		//por si se quiere modo manual
 	{
 		modo_actual = MODO_MANUAL;
+		update_LED();
 		UART_sendString("Modo manual activado.\r\n");
 		return;
 	}
 	
+	if (buffer_UART[0] == 'E')		//por si se quiere modo manual
+	{
+		modo_actual = MODO_EEPROM;
+		update_LED();
+		UART_sendString("Modo EEPROM activado.\r\n");
+		return;
+	}
 	
 	if (buffer_UART[0] != 'S')		// usaremos un formato S0:255, por ejemplo. aca verificamos que se este ingresando el formato correcto
 	{
@@ -312,6 +320,24 @@ void modo_eeprom(void)
 			if (index_UART > 0)
 			{
 				buffer_UART[index_UART] = '\0';
+				
+				if (buffer_UART[0] == 'M')
+				{
+					modo_actual = MODO_MANUAL;
+					update_LED();
+					UART_sendString("Modo manual\r\n");
+					index_UART = 0;
+					return;
+				}
+				
+				if (buffer_UART[0] == 'U')
+				{
+					modo_actual = MODO_UART;
+					update_LED();
+					UART_sendString("Modo UART\r\n");
+					index_UART = 0;
+					return;
+				}
 				
 				if (buffer_UART[0] == 'G')
 				{
