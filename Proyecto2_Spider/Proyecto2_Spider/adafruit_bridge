@@ -1,75 +1,82 @@
-# Import standard python modules
+#import standard python modules
 import sys
 import time
 import serial
 
-# Adafruit IO MQTT client
+#Adafruit IO MQTT client
 from Adafruit_IO import MQTTClient
 
-# Private config file
+#importamos desde nuestro archivo privado con la clave y usuario
 from config import ADAFRUIT_IO_USERNAME, ADAFRUIT_IO_KEY, SERIAL_PORT, BAUDRATE
 
-
-# Feeds de Adafruit IO
-FEED_ID_RECEIVE = "Spider_TX"
+# Feeds principales
+FEED_ID_RECIEVE = "Spider_TX"
 FEED_ID_SEND = "Spider_RX"
 
+def enviar_arduino(comando):
+    comando = str(comando).strip()
 
-# Conexión serial con Arduino Nano
-myArduino = serial.Serial(port=SERIAL_PORT, baudrate=BAUDRATE, timeout=0.1)
-time.sleep(2)
+    if comando == "":
+        return
+    
+    print ("Enviando al Arduino:", comando)
 
+    #El arduino espera texto + Enter
+    myArduino.write((comando + "\n").encode("utf-8"))
 
 def connected(client):
     print("Conectado a Adafruit IO")
-    print("Suscribiendo al feed:", FEED_ID_RECEIVE)
+    print("Suscribiendo al feed>",  FEED_ID_RECIEVE)
 
-    client.subscribe(FEED_ID_RECEIVE)
+    client.subscribe(FEED_ID_RECIEVE)
 
-    print("Esperando datos...")
-
+    print("Esprerando datos...")
 
 def disconnected(client):
     print("Desconectado de Adafruit IO")
     sys.exit(1)
 
-
 def message(client, feed_id, payload):
-    print("Feed {0} received new value: {1}".format(feed_id, payload))
+    print("Feed {0} received new value: [1]".format(feed_id, payload))
 
-    comando = str(payload).strip()
+    if feed_id == FEED_ID_RECIEVE:
+        enviar_arduino(payload)
+        #client.publish(FEED_ID_SEND, "Sent:" + str(payload)) //se comentó por problema
+        #al presionar los botones muy rápido
 
-    print("Enviando al Arduino:", comando)
+try:
+    #crear cliente MQTT
+    client = MQTTClient(ADAFRUIT_IO_USERNAME, ADAFRUIT_IO_KEY)
 
-    # Manda el comando al Arduino por UART
-    myArduino.write((comando + "\n").encode("utf-8"))
+    #conexion seria con Arduino Nano
+    myArduino = serial.Serial(port=SERIAL_PORT, baudrate=BAUDRATE, timeout=0.1)
+    time.sleep(2)
 
-    # Publica confirmación en Adafruit
-    client.publish(FEED_ID_SEND, "Sent: " + comando)
+    #configurar callbacks
+    client.on_connect = connected
+    client.on_disconnect = disconnected
+    client.on_message = message
 
+    #conectar con Adafruit IO
+    client.connect()
 
-# Crear cliente MQTT
-client = MQTTClient(ADAFRUIT_IO_USERNAME, ADAFRUIT_IO_KEY)
+    client.loop_background()
 
-# Configurar callbacks
-client.on_connect = connected
-client.on_disconnect = disconnected
-client.on_message = message
+    while True:
+        #leer respuestas del arduino
+        if myArduino.in_waiting > 0:
+            respuesta = myArduino.readline().decode("utf-8", errors="ignore").strip()
 
-# Conectar con Adafruit
-client.connect()
+            if respuesta:
+                print("Arduino:", respuesta)
+                client.publish(FEED_ID_SEND, respuesta)
 
-# Correr MQTT en segundo plano
-client.loop_background()
+        time.sleep(0.1)
 
+except KeyboardInterrupt:
+    print("Adios")
 
-while True:
-    # Leer respuestas que mande el Arduino por UART
-    if myArduino.in_waiting > 0:
-        respuesta = myArduino.readline().decode("utf-8", errors="ignore").strip()
+    if "myArduino" in globals() and myArduino.is_open:
+        myArduino.close()
 
-        if respuesta:
-            print("Arduino:", respuesta)
-            client.publish(FEED_ID_SEND, respuesta)
-
-    time.sleep(0.1)
+    sys.exit(1)
