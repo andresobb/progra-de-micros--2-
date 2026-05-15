@@ -13,6 +13,15 @@ from config import ADAFRUIT_IO_USERNAME, ADAFRUIT_IO_KEY, SERIAL_PORT, BAUDRATE
 FEED_ID_RECIEVE = "Spider_TX"
 FEED_ID_SEND = "Spider_RX"
 
+SERVO_FEEDS = {
+    "Spider-S0": 0,
+    "Spider-S1": 1,
+    "Spider-S2": 2,
+    "Spider-S3": 3,
+    "Spider-S4": 4,
+    "Spider-S5": 5,
+}
+
 def enviar_arduino(comando):
     comando = str(comando).strip()
 
@@ -30,6 +39,10 @@ def connected(client):
 
     client.subscribe(FEED_ID_RECIEVE)
 
+    for feed in SERVO_FEEDS:
+        client.subscribe(feed)
+        print("Suscrito a:", feed)
+
     print("Esprerando datos...")
 
 def disconnected(client):
@@ -37,12 +50,27 @@ def disconnected(client):
     sys.exit(1)
 
 def message(client, feed_id, payload):
-    print("Feed {0} received new value: [1]".format(feed_id, payload))
+    print("Feed {0} received new value: {1}".format(feed_id, payload))
 
     if feed_id == FEED_ID_RECIEVE:
         enviar_arduino(payload)
-        #client.publish(FEED_ID_SEND, "Sent:" + str(payload)) //se comentó por problema
-        #al presionar los botones muy rápido
+        client.publish(FEED_ID_SEND, "Sent:" + str(payload)) 
+    elif feed_id in SERVO_FEEDS:
+        servo = SERVO_FEEDS[feed_id]
+
+        try:
+            valor = int(float(payload))
+        except ValueError:
+            print("Valor invalido:", payload)
+            return
+        
+        if (valor < 0):
+            valor = 0
+        if (valor > 255):
+            valor = 255
+
+        comando = "S{}:{}".format(servo, valor)
+        enviar_arduino(comando)
 
 try:
     #crear cliente MQTT
