@@ -41,6 +41,9 @@ uint8_t posicion_S3 = 127;
 uint8_t posicion_S4 = 127;
 uint8_t posicion_S5 = 127;
 
+uint8_t servo_min[6] = {0, 0, 10, 15, 0, 10};
+uint8_t servo_max[6] = {255, 255, 245, 200, 115, 150};
+
 /*
 - codo izq- PD6
 - codo der - PD5
@@ -67,6 +70,7 @@ void saludo_izq(void);
 void saludo_der(void);
 void reverencia(void);
 void setServo(uint8_t servo, uint8_t valor);
+uint8_t mapear_servo(uint8_t servo, uint8_t valor);
 void procesar_comando_uart(void);
 void LED_init(void);
 void update_LED(void);
@@ -109,13 +113,7 @@ int main(void)
 				index_UART = 0;
 				modo_actual = MODO_EEPROM;
 				update_LED();
-				menu_eeprom();
-				
-			}
-			
-			else if (modo_actual != MODO_UART && modo_actual != MODO_EEPROM)
-			{
-				bandera_UART = 0;
+				menu_eeprom();				
 			}
 		}	
 	
@@ -165,28 +163,70 @@ void modo_manual(void)
 	copia_ADC5 = ADC_valores[5];
 	sei();
 	
-	dutyCycle0 = 8 + ((uint32_t)copia_ADC0 * 27) / 1023;	//OCR0A
-	dutyCycle1 = 8 + ((uint32_t)copia_ADC1 * 27) / 1023;	//OCR0B
+	setServo(0, mapear_servo(0, copia_ADC0 / 4));
+	setServo(1, mapear_servo(1, copia_ADC1 / 4));
+	setServo(2, mapear_servo(2, copia_ADC2 / 4));
+	setServo(3, mapear_servo(3, copia_ADC3 / 4));
+	setServo(4, mapear_servo(4, copia_ADC4 / 4));
+	setServo(5, mapear_servo(5, copia_ADC5 / 4));
 	
-	dutyCycle2 = 1000 + ((uint32_t)copia_ADC2 * 3500) / 1023;	//OCR1A
-	dutyCycle3 = 1000 + ((uint32_t)copia_ADC3 * 3500) / 1023;	//OCR1B
-	
-	dutyCycle4 = 8 + ((uint32_t)copia_ADC4 * 27) / 1023;	//OCR2A
-	dutyCycle5 = 8 + ((uint32_t)copia_ADC5 * 27) / 1023;	//OCR2B
-	
-	dutyCycle_S0(dutyCycle0);
-	dutyCycle_S1(dutyCycle1);
-	dutyCycle_S2(dutyCycle2);
-	dutyCycle_S3(dutyCycle3);
-	dutyCycle_S4(dutyCycle4);
-	dutyCycle_S5(dutyCycle5);
-	
-	posicion_S0 = copia_ADC0 / 4;
-	posicion_S1 = copia_ADC1 / 4;
-	posicion_S2 = copia_ADC2 / 4;
-	posicion_S3 = copia_ADC3 / 4;
-	posicion_S4 = copia_ADC4 / 4;
-	posicion_S5 = copia_ADC5 / 4;
+	if (bandera_UART)
+	{
+		bandera_UART = 0;
+		
+		if (dato_UART == '\r' || dato_UART == '\n')
+		{
+			if (index_UART > 0)
+			{
+				buffer_UART[index_UART] = '\0';
+				
+				if (buffer_UART[0] == 'U')
+				{
+					modo_actual = MODO_UART;
+					update_LED();
+					UART_sendString("Modo UART\r\n");
+					index_UART = 0;
+					return;
+				}
+				
+				if (buffer_UART[0] == 'E')
+				{
+					modo_actual = MODO_EEPROM;
+					update_LED();
+					UART_sendString("Modo EEPROM\r\n");
+					index_UART = 0;
+					return;
+				}
+				
+				if (buffer_UART[0] == 'G')
+				{
+					if (buffer_UART[1] >= '0' && buffer_UART[1] <= '3')
+					{
+						guardar_pose(buffer_UART[1] - '0');
+					}
+					else
+					{
+						UART_sendString("Espacio no valido.\r\n");
+					}
+				}
+				
+				index_UART = 0;
+			}
+		}
+		else
+		{
+			if (index_UART < 9)
+			{
+				buffer_UART[index_UART] = dato_UART;
+				index_UART++;
+			}
+			else
+			{
+				index_UART = 0;
+				UART_sendString("Buffer lleno\r\n");
+			}
+		}
+	}
 }
 
 void modo_uart(void)
@@ -202,7 +242,7 @@ void modo_uart(void)
 				buffer_UART[index_UART] = '\0';
 				procesar_comando_uart();
 				index_UART = 0;
-			}
+			}			
 		}
 		
 		else
@@ -305,6 +345,7 @@ void procesar_comando_uart()
 		valor = 255;
 	}
 	
+	valor = mapear_servo(servo, (uint8_t)valor);
 	setServo(servo, (uint8_t)valor);
 	UART_sendString("Ejecucion completada\r\n");
 	
@@ -337,18 +378,6 @@ void modo_eeprom(void)
 					UART_sendString("Modo UART\r\n");
 					index_UART = 0;
 					return;
-				}
-				
-				if (buffer_UART[0] == 'G')
-				{
-					if (buffer_UART[1] >= '0' && buffer_UART[1] <= '3')
-					{
-						guardar_pose(buffer_UART[1] - '0');
-					}
-					else
-					{
-						UART_sendString("Pose no valida\r\n");
-					}
 				}
 				else if (buffer_UART[0] == 'L')
 				{
@@ -431,6 +460,19 @@ void setServo(uint8_t servo, uint8_t valor)
 	uint8_t duty8 = 0;
 	uint16_t duty16 = 0;
 	
+	if (servo > 5)
+	{
+		return;
+	}
+	if (valor < servo_min[servo])
+	{
+		valor = servo_min[servo];
+	}
+	if (valor > servo_max[servo])
+	{
+		valor = servo_max[servo];
+	}
+	
 	switch (servo)
 	{
 		case 0:
@@ -469,6 +511,17 @@ void setServo(uint8_t servo, uint8_t valor)
 		posicion_S5 = valor;
 		break;
 	}
+}
+
+uint8_t mapear_servo(uint8_t servo, uint8_t valor)
+{
+	if (servo > 5)
+	{
+		return valor;
+	}
+	
+	uint16_t rango = servo_max[servo] - servo_min[servo];
+	return servo_min[servo] + (((uint32_t)valor * rango) / 255);
 }
 
 void LED_init(void)
@@ -541,10 +594,6 @@ void leer_pose(uint8_t pose)
 void menu_eeprom()
 {
 	UART_sendString("\r\nModo EEPROM\r\n");
-	UART_sendString("G0 - Guardar posicion 0\r\n");
-	UART_sendString("G1 - Guardar posicion 1\r\n");
-	UART_sendString("G2 - Guardar posicion 2\r\n");
-	UART_sendString("G3 - Guardar posicion 3\r\n");
 	UART_sendString("L0 - Leer posicion 0\r\n");
 	UART_sendString("L1 - Leer posicion 1\r\n");
 	UART_sendString("L2 - Leer posicion 2\r\n");
